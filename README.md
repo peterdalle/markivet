@@ -12,7 +12,7 @@ pip install git+https://github.com/peterdalle/markivet.git@v0.1
 
 ## Usage
 
-Convert a file:
+Convert a text file:
 
 ```py
 from markivet import Markivet
@@ -39,50 +39,49 @@ markivet.remove_duplicates()
 markivet.save("aftonbladet.json")
 ```
 
-Convert all TXT files in a directory:
+Convert all text files in a directory:
 
 ```py
 markivet = Markivet.from_path("/home/username/*.txt")
 markivet.save("articles.json")
 ```
 
-Loop through articles and display:
+Loop through news articles and display:
 
 ```py
 markivet = Markivet("aftonbladet.txt")
 
-for article in markivet:
-    print(article.title) 
-    print(article.section)
-    print(article.page)
-    print(article.newspaper)
-    print(article.edition)
-    print(article.date)      # parsed date as yyyy-mm-dd hh:mm:ss
-    print(article.date_raw)  # date as is it was found
-    print(article.lead)
-    print(article.body)
+for news in markivet:
+    print(news.title) 
+    print(news.section)
+    print(news.page)
+    print(news.newspaper)
+    print(news.edition)
+    print(news.date)      # parsed date as yyyy-mm-dd hh:mm:ss
+    print(news.date_raw)  # date as it was found
+    print(news.lead)
+    print(news.body)
 ```
 
 ## Write your own parser if you don't like the default
 
-You can also write your own parser if you don't like the default `ArticleParser`. 
-
-A parser is responsible for converting the article text string into structured metadata (of the type `NewsArticle`). This is useful if the current parser doesn't work as you wish.
+A parser is responsible for converting the article text string into structured metadata (of the type `NewsArticle`).
+You can write your own parser if you don't like the default `ArticleParser`.
 
 How to:
 
-1. Create your own class, like `MyOwnParser`
+1. Create your own class, like `MyParser`
 2. Add a `parse()` method
 3. The method must take a string as an input argument
 4. The method must return a `NewsArticle` object
-5. When you want to use your parser, pass the class name as an argument: `Markivet("file.txt",  parser=MyOwnParser)`
+5. When you want to use your parser, pass the class name as an argument: `Markivet("file.txt",  parser=MyParser)`
 
 Example:
 
 ```py
 from markivet import Markivet, NewsArticle
 
-class MyOwnParser:
+class MyParser:
 
     def parse(self, content: str) -> NewsArticle:
         """Extract the info you want, put it into NewsArticle, and return it"""
@@ -94,7 +93,7 @@ class MyOwnParser:
         news.section = "Domestic News"
         return news
 
-journal = Markivet("journal.txt", parser=MyOwnParser)  # <---- Inject your parser here
+journal = Markivet("journal.txt", parser=MyParser)  # <---- Inject your parser here
 journal.save("journal.json")
 ```
 
