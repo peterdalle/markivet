@@ -1,6 +1,6 @@
 # Markivet - convert Mediearkivet text files into structured data
 
-Python app **Markivet** helps you convert TXT files exported from Retriever Mediearkivet into JSON files with structured metadata.
+Python library **Markivet** helps you convert TXT files exported from Retriever Mediearkivet into JSON files with structured metadata.
 
 The purpose is to make large-scale text analysis easier to do.
 
