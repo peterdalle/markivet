@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 
 NAME = "Markivet"
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 DESCRIPTION = "Converts Retriever Mediearkivet TXT files into structured data (JSON)."
 URL = "https://github.com/peterdalle/markivet"
 EXCLUDE_LIST = []
