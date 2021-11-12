@@ -7,7 +7,7 @@ The purpose is to make large-scale text analysis easier to do.
 ## Install
 
 ```py
-pip install git+https://github.com/peterdalle/markivet.git@v0.1
+pip install git+https://github.com/peterdalle/markivet.git@v0.2
 ```
 
 ## Usage
