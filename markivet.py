@@ -74,9 +74,11 @@ class ArticleParser:
     Assumes that the default settings were used during the TXT
     export at Retriever Mediearkivet (including table of contents)."""
     
-    def parse(self, content: str):
+    def parse(self, content: str) -> NewsArticle:
         if not content:
             raise ValueError("Argument 'content' is empty.")
+        if content == "":
+            return NewsArticle()
         content = self._remove_crap_from_article(content)
         metadata, lead, body = self._split_into_three_parts(content)
         news = self._parse_metadata(metadata)
@@ -183,7 +185,9 @@ class ArticleParser:
 
     def _find_edition(self, lines: list) -> str:
         for line in lines:
-            if line.startswith("Publicerat i") or line.startswith("Sänt i"):
+            if line.startswith("Publicerat i") or line.startswith("Publicerat på"):
+                return line
+            if line.startswith("Sänt i"):
                 return line
         return ""
 
@@ -195,14 +199,15 @@ class ArticleParser:
 
 
 class Markivet:
-    """Loads, parses and saves Retriever Mediearkivet TXT files."""
+    """Loads, parses, and saves Retriever Mediearkivet TXT files."""
 
-    def __init__(self, file: str, verbose=False, parser=ArticleParser):
+    def __init__(self, file: str, verbose=True, parser=ArticleParser):
         self._file = file
         self._verbose = verbose
         self._parser_class = parser
-        self._reset_setup()
-        self._load_file_lines(file)
+        self._articles = []
+        self._files_loaded = []
+        self._load_file(file)
 
     @classmethod
     def from_articles(cls, me, articles: list):
@@ -212,12 +217,17 @@ class Markivet:
         return markivet
 
     @classmethod
-    def from_folder(cls, path: str, verbose=False):
+    def from_folder(cls, path: str, verbose=True):
         """Load articles from all specified files in a folder, e.g. `/my/path/*.txt`."""
         markivet = Markivet(file=None, verbose=verbose)
         markivet.path = path
         markivet._load_path(path)
         return markivet
+
+    @property
+    def files(self) -> list:
+        """Gets a list of loaded files."""
+        return self._files_loaded
 
     @property
     def articles(self) -> list:
@@ -240,77 +250,80 @@ class Markivet:
     def parser(self) -> bool:
         return self._parser_class
 
-    @property
-    def path(self) -> bool:
-        return self._path
-
-    @path.setter
-    def path(self, value: bool):
-        self._path = value
-
-    def _reset_setup(self):
-        self._path = None
-        self._lines = None
-        self._articles = []
-        self._article_texts = []
-        self._files_loaded = []
-
     def _load_path(self, path: str):
         for file in glob.glob(path):
-            self._load_file_lines(file)
+            self._load_file(file)
 
-    def _load_file_lines(self, file: str):
+    def _load_file(self, file: str):
         if not file:
             return
-        self._lines = None
-        print(f"Loading {file}")
+        self._print(f"Loading {file}")
         with open(file, 'r', encoding="UTF-8") as f:
-            self._lines = f.readlines()
-        if self._lines:
-            self._print(f"File has {len(self._lines)} lines")
-            self._find_all_article_texts()
-            self._parse_all_article_texts()
+            lines = f.readlines()
+        if lines:
+            article_texts = self._find_all_article_texts(lines)
+            self._articles.extend(self._parse_all_article_texts(article_texts))
             self._files_loaded.append(file)
         else:
-            print(f"No contents found in {file}")
+            self._print(f"No content in {file}")
 
     def _print(self, text: str):
         if self._verbose:
             print(text)
 
-    def remove_duplicates(self, verbose=False):
+    def remove_duplicates(self):
         """Removes all duplicate articles."""
-        self._verbose = verbose
+        self._print(f"Searching for duplicates in {len(self._articles)} articles...")
         if not self._articles:
             return
-        before = len(self._articles)
         self._articles = list(set(self._articles))
-        removed = before - len(self._articles)
+        survived = []
+        before = len(self._articles)
+        progress = ProgressBar(before)
+        # Yes, this is a slow O(n*n) but it works...
+        for i, article in enumerate(self._articles):
+            if not self._contain_article(article, survived):
+                survived.append(article)
+            if self._verbose:
+                progress.print_bar(i)
+        if self._verbose:
+            progress.stop()
+        self._articles = survived
+        removed = before - len(survived)
+        del survived
         if removed > 0:
             self._print(f"Removed {removed} duplicates")
         else:
             self._print(f"No duplicates found")
 
+    def _contain_article(self, article: NewsArticle, article_list: list) -> bool:
+        for current_article in article_list:
+            if current_article.to_dict() == article.to_dict():
+               return True
+        return False
+
     def save(self, file: str, encoding="UTF-8"):
         """Saves the parsed file into a JSON file."""
         if len(self._articles) == 0:
-            print("Nothing to save")
+            self._print("Nothing to save")
             return
         with open(file, 'w', encoding=encoding) as f:
             article_json = [article.to_dict() for article in self._articles]
             f.write(json.dumps(article_json, sort_keys=False, indent=4, default=str))
         self._print(f"Saved {len(self._articles)} articles to {file}")
 
-    def _find_all_article_texts(self):
-        i = self._find_article_start_index(self._lines)
+    def _find_all_article_texts(self, lines: str) -> list:
+        i = self._find_article_start_index(lines)
         cumulative = []
-        for line in self._lines[i:]:
+        article_texts = []
+        for line in lines[i:]:
             cumulative.append(line)
             if "===========" in line:
-                self._article_texts.append("\n".join(line.strip() for line in cumulative))
+                article_texts.append("\n".join(line.strip() for line in cumulative))
                 cumulative.clear()
-        self._article_texts.append("\n".join(cumulative))
-        self._print(f"Extracted {len(self._article_texts)} article texts")
+        article_texts.append("\n".join(cumulative))
+        #self._print(f"Extracted {len(article_texts)} article texts")
+        return article_texts
 
     def _find_article_start_index(self, lines: list) -> int:
         prev_line = None
@@ -320,19 +333,26 @@ class Markivet:
             prev_line = line
         return 0
 
-    def _parse_all_article_texts(self):
-        for i, article_text in enumerate(self._article_texts):
-            text_preview = article_text[:50].replace("\n", " ").strip()
-            self._print(f"Parsing article #{i + 1} '{text_preview}...'")
+    def _parse_all_article_texts(self, article_texts: str) -> list:
+        errors = 0
+        articles = []
+        for i, article_text in enumerate(article_texts):
+            #text_preview = article_text[:50].replace("\n", " ").strip()
+            #self._print(f"Parsing article #{i + 1} '{text_preview}...'")
             news = self._parse_article_text_into_news(article_text)
             if news:
-                self._articles.append(news)
+                articles.append(news)
             else:
                 self._print(f"Parser couldn't identify article #{i + 1}")
+                errors += 1
+        error_message = f", {errors} of them contained errors" if errors > 0 else ""
+        #self._print(f"Parsed {i + 1} articles" + error_message)
+        return articles
 
     def _parse_article_text_into_news(self, content: str) -> NewsArticle:
-        cls = self._parser_class()
-        return cls.parse(content)
+        parser = self._parser_class()
+        news = parser.parse(content)
+        return news
 
     def __str__(self) -> str:
         min_date, max_date = self._date_range()
@@ -376,6 +396,28 @@ class Markivet:
             raise ValueError("Cannot add together, not the same type")
         return Markivet.from_articles(self, self._articles + other.articles)
 
+
+class ProgressBar():
+    """Simple progress bar that shows percent complete."""
+
+    def __init__(self, max_count: int, decimals=1, prefix="[", char="█", suffix="]", width=50):
+        self._max_count = max_count
+        self._decimals = decimals
+        self._prefix = prefix
+        self._char = char
+        self._suffix = suffix
+        self._width = width
+
+    def print_bar(self, iteration: int):
+        percent = 100 * (iteration / float(self._max_count))
+        percent = ("{0:." + str(self._decimals) + "f}").format(percent)
+        pad_width = int(self._width * iteration // self._max_count)
+        bar = self._char * pad_width + "-" * (self._width - pad_width)
+        print(f"\r{self._prefix}{bar}{self._suffix} {percent}%", end="\r")
+
+    def stop(self):
+        self.print_bar(self._max_count)
+        print()
 
 if __name__ == "__main__":
     print("Markivet is a library and cannot be runned as an independent program.")
