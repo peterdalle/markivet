@@ -2,11 +2,11 @@ from setuptools import setup, find_packages
 
 
 NAME = "Markivet"
-VERSION = "0.3.0"
+VERSION = "0.3.1"
 DESCRIPTION = "Converts Retriever Mediearkivet TXT files into structured data (JSON)."
 URL = "https://github.com/peterdalle/markivet"
 EXCLUDE_LIST = []
-REQUIRED = []
+REQUIRED = ["python-dateutil"]
 
 if __name__ == "__main__":
     setup(
