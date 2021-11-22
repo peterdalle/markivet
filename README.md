@@ -2,12 +2,12 @@
 
 Python library **Markivet** helps you convert TXT files exported from Retriever Mediearkivet into JSON files with structured metadata.
 
-The purpose is to make large-scale text analysis easier to do.
+Markivet makes large-scale text analysis easier. 
 
 ## Install
 
 ```py
-pip install git+https://github.com/peterdalle/markivet.git@v0.2
+pip install git+https://github.com/peterdalle/markivet.git@v0.3
 ```
 
 ## Usage
@@ -50,8 +50,10 @@ Loop through news articles and display:
 
 ```py
 markivet = Markivet("aftonbladet.txt")
+markivet.add_id()  # adds incremental id to each article (e.g. 1 to 50 if you have 50 articles)
 
 for news in markivet:
+    print(news.id)
     print(news.title) 
     print(news.section)
     print(news.page)
@@ -61,7 +63,10 @@ for news in markivet:
     print(news.date_raw)  # date as it was found
     print(news.lead)
     print(news.body)
+    print(news.url)       # url to article on Mediearkivet
 ```
+
+*Note:* All examples on this page assume that you've downloaded text files from Retriever Mediearkivet with default settings (Swedish). 
 
 ## Write your own parser if you don't like the default
 
@@ -110,4 +115,4 @@ Class | What it does
 
 ## Support
 
-File a new issue if you find an error with the software.
+[Create a new issue](https://github.com/peterdalle/markivet/issues) if you find an error with the software or have a feature request.
