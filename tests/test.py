@@ -36,6 +36,7 @@ class MarkivetTests(unittest.TestCase):
         self.assertEqual(news.edition, "Publicerat på webb.")
         self.assertEqual(news.lead, "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse pulvinar purus...")
         self.assertEqual(news.body[:37], "©Sonnier<br>Alla artiklar är skyddade")
+        self.assertEqual(news.url, "http://ret.nu/7Ml1g0k")
 
     def test_generator_works(self):
         for i, news in enumerate(self.markivet):
