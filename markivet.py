@@ -9,6 +9,7 @@ class NewsArticle:
     """Represents a single news article."""
 
     def __init__(self):
+        self.id = None
         self.title = None
         self.section = None
         self.newspaper = None
@@ -19,9 +20,10 @@ class NewsArticle:
         self.lead = None
         self.body = None
         self.imagetext = None
+        self.url = None
 
     def to_dict(self) -> dict:
-        return {
+        article_dict = {
             "title": self.title,
             "section": self.section,
             "newspaper": self.newspaper,
@@ -29,10 +31,19 @@ class NewsArticle:
             "date_raw": self.date_raw,
             "page": self.page,
             "edition": self.edition,
+            "url": self.url,
             "lead": self.lead,
             "body": self.body,
             "imagetext": self.imagetext,
         }
+        if self.id:
+            article_dict = self._add_id(article_dict)
+        return article_dict
+
+    def _add_id(self, article_dict):
+        id_dict = {"id": self.id}
+        id_dict.update(article_dict)
+        return id_dict
 
     @property
     def is_missing(self) -> bool:
@@ -51,7 +62,8 @@ Newspaper:  {self.newspaper}
      Page:  {self.page}
   Edition:  {self.edition}
      Lead:  {self._preview_text(self.lead)}
-     Body:  {self._preview_text(self.body)}""")
+     Body:  {self._preview_text(self.body)}
+      URL:  {self.url}""")
 
     def _preview_text(self, text: str) -> str:
         if len(text) > 15:
@@ -84,6 +96,7 @@ class ArticleParser:
         news = self._parse_metadata(metadata)
         news.lead = lead
         news.body = body
+        news.url = self._find_url(content)
         return news
 
     def _remove_crap_from_article(self, article: str) -> str:
@@ -100,7 +113,6 @@ class ArticleParser:
     def _is_bad_line(self, line: str) -> bool:
         bad_lines_contain = [
             "====================",
-            "Läs hela artikeln på http://ret.nu/",
             "Artiklar får ej distribueras utanför den egna organisationen utan godkännande från Retriever",
         ]
         for bad in bad_lines_contain:
@@ -139,18 +151,19 @@ class ArticleParser:
         news.page = self._find_page(lines)
         news.edition = self._find_edition(lines)
         news.imagetext = self._find_imagetext(lines)
+        news.url = self._find_url(lines)
         return news
 
     def _strip_empty_lines(self, lines: list) -> list:
         l = []
         for line in lines:
             line = line.strip()
-            if line and not "":
+            if line and not line == "":
                 l.append(line)
         return l
 
     def _find_section(self, lines: list) -> list:
-        # matches CAPITAL LETTERS.
+        # matches CAPITAL LETTERS
         for line in lines:
             if re.search(r"([A-ZÅÄÖ0-9]){2}\.", line):
                 return line
@@ -197,6 +210,15 @@ class ArticleParser:
                 return line
         return ""
 
+    def _find_url(self, line: str) -> str:
+        # matches retriever link to full text version
+        if "http://ret.nu/" in line or "https://ret.nu/" in line:
+            url = re.search("(?P<url>https?://[^\s]+)", line).group("url")
+            if url:
+                return url
+            return line
+        return ""
+
 
 class Markivet:
     """Loads, parses, and saves Retriever Mediearkivet TXT files."""
@@ -220,7 +242,6 @@ class Markivet:
     def from_folder(cls, path: str, verbose=True):
         """Load articles from all specified files in a folder, e.g. `/my/path/*.txt`."""
         markivet = Markivet(file=None, verbose=verbose)
-        markivet.path = path
         markivet._load_path(path)
         return markivet
 
@@ -235,7 +256,7 @@ class Markivet:
         return self._articles
 
     @articles.setter
-    def articles(self, value: list) -> list:
+    def articles(self, value: list):
         self._articles = value
 
     @property
@@ -258,7 +279,7 @@ class Markivet:
         if not file:
             return
         self._print(f"Loading {file}")
-        with open(file, 'r', encoding="UTF-8") as f:
+        with open(file, "r", encoding="UTF-8") as f:
             lines = f.readlines()
         if lines:
             article_texts = self._find_all_article_texts(lines)
@@ -280,7 +301,7 @@ class Markivet:
         survived = []
         before = len(self._articles)
         progress = ProgressBar(before)
-        # Yes, this is a slow O(n*n) but it works...
+        # Yes, this is slow but it works...
         for i, article in enumerate(self._articles):
             if not self._contain_article(article, survived):
                 survived.append(article)
@@ -290,11 +311,18 @@ class Markivet:
             progress.stop()
         self._articles = survived
         removed = before - len(survived)
-        del survived
         if removed > 0:
             self._print(f"Removed {removed} duplicates")
         else:
             self._print(f"No duplicates found")
+
+    def add_id(self):
+        """Add an ID to to each article."""
+        id_articles = []
+        for i, article in enumerate(self._articles):
+            article.id = i + 1
+            id_articles.append(article)
+        self._articles = id_articles
 
     def _contain_article(self, article: NewsArticle, article_list: list) -> bool:
         for current_article in article_list:
@@ -307,7 +335,7 @@ class Markivet:
         if len(self._articles) == 0:
             self._print("Nothing to save")
             return
-        with open(file, 'w', encoding=encoding) as f:
+        with open(file, "w", encoding=encoding) as f:
             article_json = [article.to_dict() for article in self._articles]
             f.write(json.dumps(article_json, sort_keys=False, indent=4, default=str))
         self._print(f"Saved {len(self._articles)} articles to {file}")
@@ -345,7 +373,7 @@ class Markivet:
             else:
                 self._print(f"Parser couldn't identify article #{i + 1}")
                 errors += 1
-        error_message = f", {errors} of them contained errors" if errors > 0 else ""
+        #error_message = f", {errors} of them contained errors" if errors > 0 else ""
         #self._print(f"Parsed {i + 1} articles" + error_message)
         return articles
 
@@ -393,7 +421,7 @@ class Markivet:
 
     def __add__(self, other: object) -> object:
         if type(self) != type(other):
-            raise ValueError("Cannot add together, not the same type")
+            raise TypeError("Cannot add together, not the same type")
         return Markivet.from_articles(self, self._articles + other.articles)
 
 
