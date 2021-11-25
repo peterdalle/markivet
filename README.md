@@ -7,7 +7,7 @@ Markivet makes large-scale text analysis easier.
 ## Install
 
 ```py
-pip install git+https://github.com/peterdalle/markivet.git@v0.4
+pip install git+https://github.com/peterdalle/markivet.git@v0.5
 ```
 
 ## Usage
