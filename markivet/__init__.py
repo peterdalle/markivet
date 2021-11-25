@@ -22,7 +22,7 @@ class NewsArticle:
         self.imagetext = None
         self.url = None
 
-    def to_dict(self) -> dict:
+    def to_dict(self, include_id: bool = True) -> dict:
         article_dict = {
             "title": self.title,
             "section": self.section,
@@ -36,11 +36,11 @@ class NewsArticle:
             "body": self.body,
             "imagetext": self.imagetext,
         }
-        if self.id:
-            article_dict = self._add_id(article_dict)
+        if self.id and include_id:
+            article_dict = self._include_id_to_dict(article_dict)
         return article_dict
 
-    def _add_id(self, article_dict):
+    def _include_id_to_dict(self, article_dict):
         id_dict = {"id": self.id}
         id_dict.update(article_dict)
         return id_dict
@@ -326,7 +326,7 @@ class Markivet:
 
     def _contain_article(self, article: NewsArticle, article_list: list) -> bool:
         for current_article in article_list:
-            if current_article.to_dict() == article.to_dict():
+            if current_article.to_dict(include_id=False) == article.to_dict(include_id=False):
                return True
         return False
 
